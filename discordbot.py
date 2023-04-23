@@ -1,32 +1,41 @@
-from cmath import log
-from distutils.sysconfig import PREFIX
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 import discord
-from dotenv import load_dotenv
-import os
-load_dotenv()
+from discord.ext import commands
+import string
 
-PREFIX = os.environ['PREFIX']
-TOKEN = os.environ['TOKEN']
+intents = discord.Intents.all()
+intents.members = True
+intents.typing = True
+intents.presences = True
 
-client = discord.Client()
+scope = [
+    'https://spreadsheets.google.com/feeds',
+    'https://www.googleapis.com/auth/drive'
+]
 
-@client.event
-async def on_ready():
-    print(f'Logged in as {client.user}.')
+json_file_name = 'preleague-schedule-36c22ff31a0c.json'
 
-@client.event
-async def on_message(message):
-    if message.author == client.user:
-        return
+credentials = ServiceAccountCredentials.from_json_keyfile_name(json_file_name, scope)
+gc = gspread.authorize(credentials)
 
-    if message.content == f'{PREFIX}call':
-        await message.channel.send("callback!")
+spreadsheet_url = 'https://docs.google.com/spreadsheets/d/11WmMV2-YIHG0K02V510lJVm1yTUDsbOY5geriLN8Oas/edit#gid=0'
 
-    if message.content.startswith(f'{PREFIX}hello'):
-        await message.channel.send('Hello!')
+doc = gc.open_by_url(spreadsheet_url)
 
+worksheet = doc.worksheet('시트1')
 
-try:
-    client.run(TOKEN)
-except discord.errors.LoginFailure as e:
-    print("Improper token has been passed.")
+bot = commands.Bot(command_prefix='/', intents=intents)
+
+@bot.command(name='match')
+async def print_data(ctx):
+    cell_data = worksheet.range('A1:F10')
+    output = ''
+    for i, cell in enumerate(cell_data):
+        if i % 6 == 0 and i != 0:
+            output += '\n'
+        my_string = str(cell.value)
+        output += f'{my_string.ljust(15)} '
+    await ctx.send(f'```\n{output}\n```')
+
+bot.run('MTA5NjU4MTk5MTc5MDU1MTA5MA.GHXviO.1kb2mMxC5VAPT4-1-Zl8fhuhVbDF1bVyyWYbQ4')
